@@ -46,3 +46,11 @@ rules:
     resources: ["nodes"]
     verbs: ["get"]
 ```
+
+## 效果展示
+### pod
+<img width="1143" alt="image" src="https://github.com/coderwangke/kubectl-debugger-plugin/assets/42019725/ece29b86-6e45-488b-bc5e-a948e154730c">
+
+### node
+<img width="865" alt="image" src="https://github.com/coderwangke/kubectl-debugger-plugin/assets/42019725/bfee8349-57f0-46e0-971c-565650fc0c16">
+
