@@ -13,6 +13,15 @@
 - 原生节点
 - 超级节点
 
+## 支持的操作命令
+```shell
+# 适用超级节点
+$ kubectl debugger pod <pod-name> -n <namespace> --rm
+
+# 适用普通节点和原生节点
+$ kubectl debugger node <node-name> --rm
+```
+
 ## 超级节点场景特殊说明
 
 超级节点上 `debugger pod` 并不是下发到了超级节点上，而是下发到了具体的pod上。
@@ -25,4 +34,15 @@
 $ chroot /host
 
 $ journalctl -u containerd
+```
+
+## 要求的权限
+```yaml
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "exec", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get"]
 ```
