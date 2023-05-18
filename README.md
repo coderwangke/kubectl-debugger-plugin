@@ -31,6 +31,8 @@ $ kubectl debugger node <node-name> --rm
 比如需要查看 `containerd` 系统组件的日志，参考如下操作：
 
 ```shell
+$ kubectl debugger pod <pod-name> -n <namespace>
+
 $ chroot /host
 
 $ journalctl -u containerd
