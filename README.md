@@ -1,6 +1,6 @@
 # kubectl-debugger-plugin
 
-在 TKE容器服务 的集群中，该插件实现了下发 `debugger pod` 的能力，用于以下场景:
+在 [TKE容器服务](https://cloud.tencent.com/document/product/457) 的集群中，该插件实现了下发 `debugger pod` 的能力，用于以下场景:
 
 1、登录节点排查问题
 
