@@ -1,1 +1,28 @@
 # kubectl-debugger-plugin
+
+在 TKE容器服务 的集群中，该插件实现了下发 `debugger pod` 的能力，用于以下场景:
+
+1、登录节点排查问题
+
+2、登录节点查看其他非容器化进程的日志，比如日志组件
+
+
+## 支持的节点类型
+
+- 普通节点
+- 原生节点
+- 超级节点
+
+## 超级节点场景特殊说明
+
+超级节点上 `debugger pod` 并不是下发到了超级节点上，而是下发到了具体的pod上。
+
+超级节点支持注解 `eks.tke.cloud.tencent.com/debug-pod: <pod-yaml>` , 用于下发其他 `pod` 到指定的 `pod` 上。
+
+比如需要查看 `containerd` 系统组件的日志，参考如下操作：
+
+```shell
+$ chroot /host
+
+$ journalctl -u containerd
+```
