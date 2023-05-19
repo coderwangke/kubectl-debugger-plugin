@@ -6,6 +6,8 @@
 
 2、登录节点查看其他非容器化进程的日志，比如日志组件
 
+3、登录节点排查网络问题，进行抓包等
+
 补充：插件使用参考 [用插件扩展kubectl](https://kubernetes.io/zh-cn/docs/tasks/extend-kubectl/kubectl-plugins/)
 
 ## 支持的节点类型
