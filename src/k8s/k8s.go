@@ -7,11 +7,11 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
+	"k8s.io/utils/pointer"
 	"math/rand"
 	"os"
 	"time"
 
-	"k8s.io/utils/pointer"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -23,8 +23,8 @@ import (
 
 // KubernetesClient 存储 Kubernetes 客户端
 type KubernetesClient struct {
-	clientset *kubernetes.Clientset
-	config *rest.Config
+	clientset     *kubernetes.Clientset
+	config        *rest.Config
 	streamOptions *kubectlexec.StreamOptions
 }
 
@@ -44,17 +44,17 @@ func NewKubernetesClient(kubeconfig string) (*KubernetesClient, error) {
 
 	streamOptions := kubectlexec.StreamOptions{
 		IOStreams: genericclioptions.IOStreams{
-			In: os.Stdin,
-			Out: os.Stdout,
+			In:     os.Stdin,
+			Out:    os.Stdout,
 			ErrOut: os.Stderr,
 		},
 		Stdin: true,
-		TTY: true,
+		TTY:   true,
 	}
 
 	return &KubernetesClient{
-		clientset: clientset,
-		config: config,
+		clientset:     clientset,
+		config:        config,
 		streamOptions: &streamOptions,
 	}, nil
 }
@@ -95,14 +95,14 @@ func (c *KubernetesClient) GetNodeType(node string) (string, error) {
 
 	labels := nodeObj.GetLabels()
 	if labels["node.kubernetes.io/instance-type"] == "eklet" {
-		return "super", nil
+		return SuperNodeType, nil
 	}
 
-	return "normal", nil
+	return NormalNodeType, nil
 }
 
 // AnnotatePod 给 pod 打上注解
-func (c *KubernetesClient) AnnotatePod(podName, namespace string) error {
+func (c *KubernetesClient) AnnotatePod(podName, namespace, image string) error {
 	// 获取 pod 对象
 	pod, err := c.clientset.CoreV1().Pods(namespace).Get(context.Background(), podName, metav1.GetOptions{})
 	if err != nil {
@@ -115,15 +115,21 @@ func (c *KubernetesClient) AnnotatePod(podName, namespace string) error {
 		annotations = make(map[string]string)
 	}
 
-	if _, ok := annotations[EKS_DEBUGGER_POD_ANNOTATION_KEY]; ok {
+	if _, ok := annotations[EksDebuggerPodAnnotationKey]; ok {
+		// 如果注解以存在，则直接返回，尝试登录
 		return nil
 	}
-	annotations[EKS_DEBUGGER_POD_ANNOTATION_KEY] = EKS_INGEST_POD_NAME
+	ingestPodStr, err := getEksIngestPodStr(image)
+	if err != nil {
+		return err
+	}
+
+	annotations[EksDebuggerPodAnnotationKey] = ingestPodStr
 	pod.SetAnnotations(annotations)
 
 	_, err = c.clientset.CoreV1().Pods(namespace).Update(context.Background(), pod, metav1.UpdateOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to annotate pod %s in namespace %s: %v", podName, namespace, err)
+		return fmt.Errorf("failed annotate pod %s in namespace %s: %v", podName, namespace, err)
 	}
 
 	return nil
@@ -139,7 +145,7 @@ func (c *KubernetesClient) RemovePodAnnotation(podName, namespace string) error 
 	// 移除指定的注解
 	annotations := pod.GetAnnotations()
 	if annotations != nil {
-		delete(annotations, EKS_DEBUGGER_POD_ANNOTATION_KEY)
+		delete(annotations, EksDebuggerPodAnnotationKey)
 		pod.SetAnnotations(annotations)
 	}
 
@@ -191,7 +197,7 @@ func (c *KubernetesClient) IsPodRunning(podName, namespace string) (bool, error)
 }
 
 // CreateNsenterPod 在节点上创建一个命名为 nsenter-xxxxx 的 pod
-func (c *KubernetesClient) CreateNsenterPod(node string) (string, error) {
+func (c *KubernetesClient) CreateNsenterPod(node, image string) (string, error) {
 	var podName string
 	// 生成随机字符
 	rand.Seed(time.Now().UnixNano())
@@ -211,11 +217,11 @@ func (c *KubernetesClient) CreateNsenterPod(node string) (string, error) {
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: pointer.Bool(true),
 				},
-				Image: "docker.io/library/alpine",
-				Name:  "debugger",
-				Stdin: true,
+				Image:     image,
+				Name:      "debugger",
+				Stdin:     true,
 				StdinOnce: true,
-				TTY:   true,
+				TTY:       true,
 				Command: []string{
 					"nsenter",
 					"--target",
@@ -273,7 +279,7 @@ func (c *KubernetesClient) DeletePod(podName, namespace string, timeout int64) e
 	return nil
 }
 
-func (c *KubernetesClient) ExecCommand(podName, namespace, container string,  command []string) error {
+func (c *KubernetesClient) ExecCommand(podName, namespace, container string, command []string) error {
 	// 创建REST请求
 	req := c.clientset.CoreV1().RESTClient().Post().
 		Resource("pods").
@@ -291,7 +297,7 @@ func (c *KubernetesClient) ExecCommand(podName, namespace, container string,  co
 
 	executor, err := remotecommand.NewSPDYExecutor(c.config, "POST", req.URL())
 	if err != nil {
-		return  err
+		return err
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -318,7 +324,7 @@ func (c *KubernetesClient) ExecCommand(podName, namespace, container string,  co
 		TerminalSizeQueue: sizeQueue,
 	}
 
-	fn :=  func() error {
+	fn := func() error {
 		return executor.StreamWithContext(ctx, opts)
 	}
 	err = t.Safe(fn)

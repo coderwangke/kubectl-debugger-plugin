@@ -11,49 +11,57 @@ import (
 
 const defaultRetryTimeout = 20
 
-func SpawnDebuggerPodOnSuperNode(client *k8s.KubernetesClient, podName, namespace string, rm bool) error {
+type DebuggerPodHelper struct {
+	PodName   string
+	NodeName  string
+	Namespace string
+	Rm        bool
+	Image     string
+}
+
+func SpawnDebuggerPodOnSuperNode(client *k8s.KubernetesClient, helper *DebuggerPodHelper) error {
 	var err error
 	err = retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		return client.AnnotatePod(podName, namespace)
+		return client.AnnotatePod(helper.PodName, helper.Namespace, helper.Image)
 	})
 	if err != nil {
 		return err
 	}
 
 	err = wait.PollImmediate(1*time.Second, defaultRetryTimeout*time.Second, func() (bool, error) {
-		return client.IsDebuggerContainerRunning(podName, namespace)
+		return client.IsDebuggerContainerRunning(helper.PodName, helper.Namespace)
 	})
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("spawning debugger pod in pod %s success\n", podName)
+	fmt.Printf("spawning debugger pod in pod %s success\n", helper.PodName)
 
-	err = client.ExecCommand(podName, namespace, "debugger",  []string{"/bin/sh"})
+	err = client.ExecCommand(helper.PodName, helper.Namespace, "debugger", []string{"/bin/sh"})
 	// 仅输出报错，依然根据 --rm 参数删除pod
 	if err != nil {
 		log.Printf("Error executing command: %v\n", err)
 	}
 
-	if rm {
-		err = client.RemovePodAnnotation(podName, namespace)
+	if helper.Rm {
+		err = client.RemovePodAnnotation(helper.PodName, helper.Namespace)
 		if err != nil {
 			return fmt.Errorf("Error remove debugger pod: %v\n", err)
 		}
 
-		fmt.Printf("Debug pod %s deleted\n", podName)
+		fmt.Printf("Debug pod %s deleted\n", helper.PodName)
 	} else {
-		fmt.Printf("Debug pod %s exited\n", podName)
+		fmt.Printf("Debug pod %s exited\n", helper.PodName)
 	}
 
 	return nil
 }
 
-func SpawnDebuggerPodOnNormalNode(client *k8s.KubernetesClient, node string, rm bool) error {
+func SpawnDebuggerPodOnNormalNode(client *k8s.KubernetesClient, helper *DebuggerPodHelper) error {
 	var err error
 	var nsenterPodName string
 	err = retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		nsenterPodName, err = client.CreateNsenterPod(node)
+		nsenterPodName, err = client.CreateNsenterPod(helper.NodeName, helper.Image)
 
 		return err
 	})
@@ -68,15 +76,15 @@ func SpawnDebuggerPodOnNormalNode(client *k8s.KubernetesClient, node string, rm 
 		return err
 	}
 
-	fmt.Printf("spawning debugger pod  %s on node %s success\n", nsenterPodName, node)
+	fmt.Printf("spawning debugger pod  %s on node %s success\n", nsenterPodName, helper.NodeName)
 
-	err = client.ExecCommand(nsenterPodName, "default", "debugger",  []string{"/bin/sh"})
+	err = client.ExecCommand(nsenterPodName, "default", "debugger", []string{"/bin/sh"})
 	// 仅输出报错，依然根据 --rm 参数删除pod
 	if err != nil {
 		log.Printf("Error executing command: %v\n", err)
 	}
 
-	if rm {
+	if helper.Rm {
 		err = client.DeletePod(nsenterPodName, "default", int64(10))
 		if err != nil {
 			return fmt.Errorf("Error remove debugger pod: %v\n", err)
@@ -87,7 +95,5 @@ func SpawnDebuggerPodOnNormalNode(client *k8s.KubernetesClient, node string, rm 
 		fmt.Printf("Debug pod %s exited\n", nsenterPodName)
 	}
 
-
 	return nil
 }
-

@@ -2,7 +2,7 @@
 
 在 [TKE容器服务](https://cloud.tencent.com/document/product/457) 的集群中，该插件实现了下发 `debugger pod` 的能力，用于以下场景:
 
-1、登录节点排查问题
+1、登录节点排查问题，比如网络抓包
 
 2、登录节点查看其他非容器化进程的日志，比如日志组件
 
@@ -17,10 +17,16 @@
 - 超级节点
 
 ## 支持的操作命令
+
+### 超级节点
+
 ```shell
 # 适用超级节点
 $ kubectl debugger pod <pod-name> -n <namespace> --rm
+```
 
+### 普通节点或者原生节点
+```shell
 # 适用普通节点和原生节点
 $ kubectl debugger node <node-name> --rm
 ```
