@@ -35,7 +35,7 @@ func newPodCmd() *cobra.Command {
 
 func (o *PodCmdOptions) run() {
 	var err error
-	client, err := k8s.NewKubernetesClient(".kube/config")
+	client, err := k8s.NewKubernetesClient(kubeConfig)
 	if err != nil {
 		log.Fatalf("New k8s Client failed, error: %v", err)
 	}
@@ -64,11 +64,6 @@ func (o *PodCmdOptions) run() {
 
 	case k8s.SuperNodeType:
 		log.Println("超级节点")
-		// check
-		//running, err := client.IsPodRunning(podName, namespace)
-		//if !running ||  err != nil {
-		//	log.Fatal("Pod status is abnormal. Please check using kubectl.")
-		//}
 		log.Fatal(plugin.SpawnDebuggerPodOnSuperNode(client, helper))
 	}
 }
