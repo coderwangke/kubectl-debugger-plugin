@@ -5,16 +5,17 @@ import (
 	"github.com/coderwangke/kubectl-debugger-plugin/src/k8s"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
-	"log"
+	"k8s.io/klog/v2"
 	"time"
 )
 
-const defaultRetryTimeout = 20
+const defaultRetryTimeout = 1
 
 type DebuggerPodHelper struct {
 	PodName   string
 	NodeName  string
 	Namespace string
+	Command   []string
 	Rm        bool
 	Image     string
 }
@@ -28,7 +29,7 @@ func SpawnDebuggerPodOnSuperNode(client *k8s.KubernetesClient, helper *DebuggerP
 		return err
 	}
 
-	err = wait.PollImmediate(1*time.Second, defaultRetryTimeout*time.Second, func() (bool, error) {
+	err = wait.PollImmediate(5*time.Second, defaultRetryTimeout*time.Minute, func() (bool, error) {
 		return client.IsDebuggerContainerRunning(helper.PodName, helper.Namespace)
 	})
 	if err != nil {
@@ -37,10 +38,10 @@ func SpawnDebuggerPodOnSuperNode(client *k8s.KubernetesClient, helper *DebuggerP
 
 	fmt.Printf("spawning debugger pod in pod %s success\n", helper.PodName)
 
-	err = client.ExecCommand(helper.PodName, helper.Namespace, "debugger", []string{"/bin/sh"})
+	err = client.ExecCommand(helper.PodName, helper.Namespace, "debugger", helper.Command)
 	// 仅输出报错，依然根据 --rm 参数删除pod
 	if err != nil {
-		log.Printf("Error executing command: %v\n", err)
+		klog.Errorf("Error executing command: %v\n", err)
 	}
 
 	if helper.Rm {
@@ -49,9 +50,9 @@ func SpawnDebuggerPodOnSuperNode(client *k8s.KubernetesClient, helper *DebuggerP
 			return fmt.Errorf("Error remove debugger pod: %v\n", err)
 		}
 
-		fmt.Printf("Debug pod %s deleted\n", helper.PodName)
+		klog.Infof("Debug pod %s deleted\n", helper.PodName)
 	} else {
-		fmt.Printf("Debug pod %s exited\n", helper.PodName)
+		klog.Infof("Debug pod %s exited\n", helper.PodName)
 	}
 
 	return nil
@@ -66,22 +67,22 @@ func SpawnDebuggerPodOnNormalNode(client *k8s.KubernetesClient, helper *Debugger
 		return err
 	})
 	if err != nil {
-		log.Fatal(err)
+		klog.Fatal(err)
 	}
 
-	err = wait.PollImmediate(1*time.Second, defaultRetryTimeout*time.Second, func() (bool, error) {
+	err = wait.PollImmediate(5*time.Second, defaultRetryTimeout*time.Minute, func() (bool, error) {
 		return client.IsPodRunning(nsenterPodName, "default")
 	})
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("spawning debugger pod  %s on node %s success\n", nsenterPodName, helper.NodeName)
+	klog.Infof("spawning debugger pod  %s on node %s success\n", nsenterPodName, helper.NodeName)
 
-	err = client.ExecCommand(nsenterPodName, "default", "debugger", []string{"/bin/sh"})
+	err = client.ExecCommand(nsenterPodName, "default", "debugger", helper.Command)
 	// 仅输出报错，依然根据 --rm 参数删除pod
 	if err != nil {
-		log.Printf("Error executing command: %v\n", err)
+		klog.Errorf("Error executing command: %v\n", err)
 	}
 
 	if helper.Rm {
@@ -90,9 +91,9 @@ func SpawnDebuggerPodOnNormalNode(client *k8s.KubernetesClient, helper *Debugger
 			return fmt.Errorf("Error remove debugger pod: %v\n", err)
 		}
 
-		fmt.Printf("Debug pod %s deleted\n", nsenterPodName)
+		klog.Infof("Debug pod %s deleted\n", nsenterPodName)
 	} else {
-		fmt.Printf("Debug pod %s exited\n", nsenterPodName)
+		klog.Infof("Debug pod %s exited\n", nsenterPodName)
 	}
 
 	return nil

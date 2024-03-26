@@ -4,23 +4,30 @@ import (
 	"github.com/coderwangke/kubectl-debugger-plugin/src/k8s"
 	"github.com/coderwangke/kubectl-debugger-plugin/src/plugin"
 	"github.com/spf13/cobra"
-	"log"
+	"k8s.io/klog/v2"
 )
 
 type PodCmdOptions struct {
 	PodName   string
 	Namespace string
 	Image     string
+	Command   []string
 	Rm        bool
 }
 
 func newPodCmd() *cobra.Command {
-	var opt = &PodCmdOptions{}
+	var opt = &PodCmdOptions{
+		Command: []string{"/bin/sh"},
+	}
 	var podCmd = &cobra.Command{
-		Use:   "pod <pod-name>",
+		Use:   "pod <pod-name> [flags] -- COMMAND",
 		Short: "A kubectl plugin to create debug pods",
-		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			argsLenAtDash := cmd.ArgsLenAtDash()
+			if argsLenAtDash > -1 {
+				opt.Command = args[argsLenAtDash:]
+			}
+
 			opt.PodName = args[0]
 			opt.run()
 		},
@@ -28,7 +35,7 @@ func newPodCmd() *cobra.Command {
 
 	podCmd.Flags().StringVarP(&opt.Namespace, "namespace", "n", "default", "Namespace of the debug pod")
 	podCmd.Flags().StringVarP(&opt.Image, "image", "i", "busybox", "Image of the debug pod")
-	podCmd.Flags().BoolVarP(&opt.Rm, "rm", "r", true, "Remove the debug pod after it exits")
+	podCmd.Flags().BoolVarP(&opt.Rm, "rm", "r", false, "Remove the debug pod after it exits")
 
 	return podCmd
 }
@@ -37,33 +44,34 @@ func (o *PodCmdOptions) run() {
 	var err error
 	client, err := k8s.NewKubernetesClient(kubeConfig)
 	if err != nil {
-		log.Fatalf("New k8s Client failed, error: %v", err)
+		klog.Fatalf("New k8s Client failed, error: %v", err)
 	}
 
 	nodeName, err := client.GetNode(o.PodName, o.Namespace)
 	if err != nil {
-		log.Fatalf("GetNode failed, error: %v", err)
+		klog.Fatalf("GetNode failed, error: %v", err)
 	}
 
 	nodeType, err := client.GetNodeType(nodeName)
 	if err != nil {
-		log.Fatalf("GetNode failed, error: %v", err)
+		klog.Fatalf("GetNode failed, error: %v", err)
 	}
 
 	helper := &plugin.DebuggerPodHelper{
 		PodName:   o.PodName,
 		Namespace: o.Namespace,
 		Image:     o.Image,
+		Command:   o.Command,
 		NodeName:  nodeName,
 		Rm:        o.Rm,
 	}
 
 	switch nodeType {
 	case k8s.NormalNodeType:
-		log.Fatal(plugin.SpawnDebuggerPodOnNormalNode(client, helper))
+		klog.Fatal(plugin.SpawnDebuggerPodOnNormalNode(client, helper))
 
 	case k8s.SuperNodeType:
-		log.Println("超级节点")
-		log.Fatal(plugin.SpawnDebuggerPodOnSuperNode(client, helper))
+		klog.Info("超级节点")
+		klog.Fatal(plugin.SpawnDebuggerPodOnSuperNode(client, helper))
 	}
 }
