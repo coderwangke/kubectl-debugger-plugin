@@ -115,15 +115,12 @@ func (c *KubernetesClient) AnnotatePod(podName, namespace, image string) error {
 		annotations = make(map[string]string)
 	}
 
-	if _, ok := annotations[EksDebuggerPodAnnotationKey]; ok {
-		// 如果注解以存在，则直接返回，尝试登录
-		return nil
-	}
 	ingestPodStr, err := getEksIngestPodStr(image)
 	if err != nil {
 		return err
 	}
 
+	// 如果注解存在，则进行更新；如果注解不存在，则进行新增
 	annotations[EksDebuggerPodAnnotationKey] = ingestPodStr
 	pod.SetAnnotations(annotations)
 
