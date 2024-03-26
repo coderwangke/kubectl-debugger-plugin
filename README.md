@@ -22,13 +22,13 @@
 
 ```shell
 # 适用超级节点
-$ kubectl debugger pod <pod-name> -n <namespace> -i <image> --rm
+$ kubectl debugger pod <pod-name> -n <namespace> -i <image> --rm -- COMMAND
 ```
 
 ### 普通节点或者原生节点
 ```shell
 # 适用普通节点和原生节点
-$ kubectl debugger node <node-name> -i <image> --rm
+$ kubectl debugger node <node-name> -i <image> --rm -- COMMAND
 ```
 
 ## 超级节点场景特殊说明
