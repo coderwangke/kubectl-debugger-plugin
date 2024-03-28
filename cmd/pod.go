@@ -35,7 +35,7 @@ func newPodCmd() *cobra.Command {
 
 	podCmd.Flags().StringVarP(&opt.Namespace, "namespace", "n", "default", "Namespace of the debug pod")
 	podCmd.Flags().StringVarP(&opt.Image, "image", "i", "busybox", "Image of the debug pod")
-	podCmd.Flags().BoolVarP(&opt.Rm, "rm", "r", false, "Remove the debug pod after it exits")
+	podCmd.Flags().BoolVarP(&opt.Rm, "rm", "r", true, "Remove the debug pod after it exits")
 
 	return podCmd
 }
@@ -68,10 +68,14 @@ func (o *PodCmdOptions) run() {
 
 	switch nodeType {
 	case k8s.NormalNodeType:
-		klog.Fatal(plugin.SpawnDebuggerPodOnNormalNode(client, helper))
+		if err = plugin.SpawnDebuggerPodOnNormalNode(client, helper); err != nil {
+			klog.Fatal(err)
+		}
 
 	case k8s.SuperNodeType:
 		klog.Info("超级节点")
-		klog.Fatal(plugin.SpawnDebuggerPodOnSuperNode(client, helper))
+		if err = plugin.SpawnDebuggerPodOnSuperNode(client, helper); err != nil {
+			klog.Fatal(err)
+		}
 	}
 }

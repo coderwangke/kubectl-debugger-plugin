@@ -61,6 +61,8 @@ func (o *NodeCmdOptions) run() {
 	case k8s.SuperNodeType:
 		klog.Warning("kubectl debugger node 子命令不支持超级节点, 请使用 kubectl debugger pod 子命令.")
 	case k8s.NormalNodeType:
-		klog.Fatal(plugin.SpawnDebuggerPodOnNormalNode(client, helper))
+		if err = plugin.SpawnDebuggerPodOnNormalNode(client, helper); err != nil {
+			klog.Fatal(err)
+		}
 	}
 }

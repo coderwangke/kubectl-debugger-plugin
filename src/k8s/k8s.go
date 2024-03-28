@@ -142,6 +142,9 @@ func (c *KubernetesClient) RemovePodAnnotation(podName, namespace string) error 
 	// 移除指定的注解
 	annotations := pod.GetAnnotations()
 	if annotations != nil {
+		if _, exists := annotations[EksDebuggerPodAnnotationKey]; !exists {
+			return nil
+		}
 		delete(annotations, EksDebuggerPodAnnotationKey)
 		pod.SetAnnotations(annotations)
 	}
