@@ -38,7 +38,7 @@ func SpawnDebuggerPodOnSuperNode(client *k8s.KubernetesClient, helper *DebuggerP
 
 	fmt.Printf("spawning debugger pod in pod %s success\n", helper.PodName)
 
-	err = client.ExecCommand(helper.PodName, helper.Namespace, "debugger", helper.Command)
+	err = client.ExecCommand(helper.PodName, helper.Namespace, "[pod-debugger]debugger", helper.Command)
 	// 仅输出报错，依然根据 --rm 参数删除pod
 	if err != nil {
 		klog.Errorf("Error executing command: %v\n", err)

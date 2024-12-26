@@ -170,7 +170,7 @@ func (c *KubernetesClient) IsDebuggerContainerRunning(podName, namespace string)
 
 	// 检查指定容器的状态
 	for _, container := range pod.Status.ContainerStatuses {
-		if container.Name == "debugger" {
+		if container.Name == "[pod-debugger]debugger" {
 			return container.State.Running != nil, nil
 		}
 	}
